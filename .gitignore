@@ -1,0 +1,11 @@
+
+# folders
+venv/
+__pycache__/
+
+# files
+*.db
+*.sqlite3
+*.sqlite
+*.log
+
