@@ -48,7 +48,7 @@ jobs:
       working-directory: src/infra
 
     - name: Terraform Plan
-      run: terraform plan 
+      run: terraform plan -auto-approve
       working-directory: src/infra
 
     - name: Terraform Apply
