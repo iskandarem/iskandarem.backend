@@ -47,9 +47,9 @@ jobs:
       run: terraform validate
       working-directory: src/infra
 
-    - name: Terraform Plan
-      run: terraform plan -auto-approve
-      working-directory: src/infra
+    # - name: Terraform Plan
+    #   run: terraform plan -auto-approve
+    #   working-directory: src/infra
 
     - name: Terraform Apply
       run: terraform apply -auto-approve 
