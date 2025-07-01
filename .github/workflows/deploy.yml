@@ -64,6 +64,6 @@ jobs:
     - name: Tag and Push Docker Image
       run: |
         docker tag app-image:latest $ECR_REPOSITORY:latest
-        # docker tag app-image:latest $ECR_REPOSITORY:$TAG
+        docker tag app-image:latest $ECR_REPOSITORY:$TAG
         docker push $ECR_REPOSITORY:latest
-        # docker push $ECR_REPOSITORY:$TAG
+        docker push $ECR_REPOSITORY:$TAG
