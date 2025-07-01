@@ -62,6 +62,8 @@ jobs:
       run: docker build -t iskandarem:v1 src/
 
     - name: Tag and Push Docker Image
+      env:
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       run: |
         docker tag iskandarem:v1 $ECR_REPOSITORY:latest
         docker push $ECR_REPOSITORY:latest
