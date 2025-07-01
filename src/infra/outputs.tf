@@ -1,9 +1,4 @@
-output "ec2_public_ip" {
-  value = aws_instance.django.public_ip
-  description = "Public IP of the Django server"
-}
-
-output "rds_endpoint" {
-  value = aws_db_instance.postgres.endpoint
-  description = "PostgreSQL database endpoint"
+#Log the load balancer app URL
+output "app_url" {
+  value = aws_alb.application_load_balancer.dns_name
 }

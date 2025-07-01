@@ -1,65 +1,114 @@
-# VPC
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-  tags = {
-    Name = "django-vpc"
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "4.45.0"
+    }
   }
 }
 
-# Subnet
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-central-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "django-public-subnet"
+provider "aws" {
+  region  = var.region #The region where the environment 
+  #is going to be deployed # Use your own region here
+  access_key = "AKIA243O5O5O5QIDRH2O" # Enter AWS IAM 
+  secret_key = "ctS/aR3P3ZlQTGvXleKaTqhRReh5WNbRbjiEBuIT" # Enter AWS IAM 
+}
+
+
+
+resource "aws_ecr_repository" "iskandarem_ecr_repo" {
+  name = "iskandarem"
+}
+
+resource "aws_ecs_cluster" "iskandarem_cluster" {
+  name = "iskandarem-cluster" # Name your cluster here
+}
+
+
+resource "aws_ecs_task_definition" "iskandarem_task" {
+  family                   = "iskandarem-first-task" # Name your task
+  container_definitions    = <<DEFINITION
+  [
+    {
+      "name": "iskandarem-first-task",
+      "image": "${aws_ecr_repository.iskandarem_ecr_repo.repository_url}:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000
+        }
+      ],
+      "memory": 512,
+      "cpu": 256
+    }
+  ]
+  DEFINITION
+  requires_compatibilities = ["FARGATE"] # use Fargate as the launch type
+  network_mode             = "awsvpc"    # add the AWS VPN network mode as this is required for Fargate
+  memory                   = 512         # Specify the memory the container requires
+  cpu                      = 256         # Specify the CPU the container requires
+  execution_role_arn       = "${aws_iam_role.ecsTaskExecutionRole.arn}"
+}
+
+
+resource "aws_iam_role" "ecsTaskExecutionRole" {
+  name               = "ecsTaskExecutionRole"
+  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
+}
+
+data "aws_iam_policy_document" "assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
   }
 }
 
-# Internet Gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main.id
+resource "aws_iam_role_policy_attachment" "ecsTaskExecutionRole_policy" {
+  role       = "${aws_iam_role.ecsTaskExecutionRole.name}"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Route Table
-resource "aws_route_table" "rt" {
-  vpc_id = aws_vpc.main.id
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
+# Provide a reference to your default VPC
+resource "aws_default_vpc" "default_vpc" {
 }
 
-# Route Table Association
-resource "aws_route_table_association" "rt_assoc" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.rt.id
+# Provide references to your default subnets
+resource "aws_default_subnet" "default_subnet_a" {
+  # Use your own region here but reference to subnet 1a
+  availability_zone = "eu-north-1a"
 }
 
-# Security Group for EC2
-resource "aws_security_group" "ec2_sg" {
-  name        = "django-ec2-sg"
-  description = "Allow SSH and Django app traffic"
-  vpc_id      = aws_vpc.main.id
+resource "aws_default_subnet" "default_subnet_b" {
+  # Use your own region here but reference to subnet 1b
+  availability_zone = "eu-north-1b"
+}
 
+
+resource "aws_alb" "application_load_balancer" {
+  name               = "load-balancer-dev" #load balancer name
+  load_balancer_type = "application"
+  subnets = [ # Referencing the default subnets
+    "${aws_default_subnet.default_subnet_a.id}",
+    "${aws_default_subnet.default_subnet_b.id}"
+  ]
+  # security group
+  security_groups = ["${aws_security_group.load_balancer_security_group.id}"]
+}
+
+
+# Create a security group for the load balancer:
+resource "aws_security_group" "load_balancer_security_group" {
   ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Django app port"
-    from_port   = 8000
-    to_port     = 8000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] # Allow traffic in from all sources
   }
 
   egress {
@@ -70,17 +119,55 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Security Group for RDS
-resource "aws_security_group" "rds_sg" {
-  name        = "django-rds-sg"
-  description = "Allow DB access from EC2"
-  vpc_id      = aws_vpc.main.id
 
+
+resource "aws_lb_target_group" "target_group" {
+  name        = "target-group"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = "${aws_default_vpc.default_vpc.id}" # default VPC
+}
+
+resource "aws_lb_listener" "listener" {
+  load_balancer_arn = "${aws_alb.application_load_balancer.arn}" #  load balancer
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = "${aws_lb_target_group.target_group.arn}" # target group
+  }
+}
+
+
+resource "aws_ecs_service" "iskandarem_service" {
+  name            = "iskandarem-first-service"     # Name the service
+  cluster         = "${aws_ecs_cluster.iskandarem_cluster.id}"   # Reference the created Cluster
+  task_definition = "${aws_ecs_task_definition.iskandarem_task.arn}" # Reference the task that the service will spin up
+  launch_type     = "FARGATE"
+  desired_count   = 3 # Set up the number of containers to 3
+
+  load_balancer {
+    target_group_arn = "${aws_lb_target_group.target_group.arn}" # Reference the target group
+    container_name   = "${aws_ecs_task_definition.iskandarem_task.family}"
+    container_port   = 8000 # Specify the container port
+  }
+
+  network_configuration {
+    subnets          = ["${aws_default_subnet.default_subnet_a.id}", "${aws_default_subnet.default_subnet_b.id}"]
+    assign_public_ip = true     # Provide the containers with public IPs
+    security_groups  = ["${aws_security_group.service_security_group.id}"] # Set up the security group
+  }
+}
+
+
+resource "aws_security_group" "service_security_group" {
   ingress {
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ec2_sg.id]
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    # Only allowing traffic in from the load balancer security group
+    security_groups = ["${aws_security_group.load_balancer_security_group.id}"]
   }
 
   egress {
@@ -88,55 +175,5 @@ resource "aws_security_group" "rds_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# DB Subnet Group
-resource "aws_db_subnet_group" "db_subnet_group" {
-  name       = "django-db-subnet-group"
-  subnet_ids = [aws_subnet.public.id]
-
-  tags = {
-    Name = "DjangoDBSubnetGroup"
-  }
-}
-
-# RDS Instance (PostgreSQL)
-resource "aws_db_instance" "postgres" {
-  identifier              = "django-postgres"
-  engine                  = "postgres"
-  engine_version          = "15.2"
-  instance_class          = "db.t3.micro"
-  name                    = "djangodb"
-  username                = "django"
-  password                = var.db_password
-  allocated_storage       = 20
-  db_subnet_group_name    = aws_db_subnet_group.db_subnet_group.name
-  vpc_security_group_ids  = [aws_security_group.rds_sg.id]
-  publicly_accessible     = true
-  skip_final_snapshot     = true
-}
-
-# EC2 Instance
-resource "aws_instance" "django" {
-  ami                    = "ami-00fa32593b478ad6e"  # Amazon Linux 2 for eu-central-1 (as of 2024)
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-  key_name               = var.key_name
-
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              yum install -y python3 git
-              pip3 install django psycopg2-binary
-              cd /home/ec2-user
-              django-admin startproject mysite
-              cd mysite
-              python3 manage.py runserver 0.0.0.0:8000
-              EOF
-
-  tags = {
-    Name = "DjangoEC2Instance"
   }
 }
