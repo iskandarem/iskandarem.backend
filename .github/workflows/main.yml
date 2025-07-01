@@ -1,0 +1,16 @@
+name: Main Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+#   trigger-infra:
+#     uses: ./.github/workflows/infra.yml
+
+  trigger-docker:
+    uses: ./.github/workflows/docker.yml
