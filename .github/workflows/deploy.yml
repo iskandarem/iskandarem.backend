@@ -31,24 +31,29 @@ jobs:
         aws-region: ${{ secrets.AWS_REGION }}
 
     # 🏗 Terraform
-    # - name: Set up Terraform
-    #   uses: hashicorp/setup-terraform@v3
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
 
-    # - name: Terraform Init
-    #   run: terraform init
-    #   working-directory: src/infra
+      env:
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    - name: Terraform Init
+      run: terraform init
+      working-directory: src/infra
 
-    # - name: Terraform Validate
-    #   run: terraform validate
-    #   working-directory: src/infra
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: src/infra
 
-    # - name: Terraform Plan
-    #   run: terraform plan 
-    #   working-directory: src/infra
+    - name: Terraform Plan
+      run: terraform plan 
+      working-directory: src/infra
 
-    # - name: Terraform Apply
-    #   run: terraform apply -auto-approve 
-    #   working-directory: src/infra
+    - name: Terraform Apply
+      run: terraform apply -auto-approve 
+      working-directory: src/infra
 
     # 🐳 Docker Build & Push
     - name: Log in to Amazon ECR
@@ -58,8 +63,6 @@ jobs:
       run: docker build -t iskandarem:v1 src/
 
     - name: Tag and Push Docker Image
-      env:
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       run: |
         docker tag iskandarem:v1 $ECR_REPOSITORY:latest
         docker push $ECR_REPOSITORY:latest
