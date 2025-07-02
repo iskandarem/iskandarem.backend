@@ -10,8 +10,8 @@ terraform {
 provider "aws" {
   region  = var.region #The region where the environment 
   #is going to be deployed # Use your own region here
-  # access_key = "AKIA243O5O5O5QIDRH2O" # Enter AWS IAM 
-  # secret_key = "ctS/aR3P3ZlQTGvXleKaTqhRReh5WNbRbjiEBuIT" # Enter AWS IAM 
+  access_key = "AKIA243O5O5O5QIDRH2O" # Enter AWS IAM 
+  secret_key = "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" # Enter AWS IAM 
 }
 
 
