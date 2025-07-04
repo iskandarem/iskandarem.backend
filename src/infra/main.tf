@@ -1,17 +1,24 @@
-terraform {
-  required_providers {
-    aws = {
-      source = "hashicorp/aws"
-      version = "4.45.0"
+
+
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "iskandarem-terraform-state"
+
+  versioning {
+    enabled = true
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
     }
   }
+
+  tags = {
+    Name = "Terraform State Bucket"
+  }
 }
-
-provider "aws" {
-  region  = var.region #The region where the environment 
-}
-
-
 
 resource "aws_ecr_repository" "iskandarem_ecr_repo" {
   name = "iskandarem"
