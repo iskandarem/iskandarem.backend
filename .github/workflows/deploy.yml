@@ -58,20 +58,21 @@ jobs:
     # 🐳 Docker Build & Push
     - name: Log in to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
-      env:
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-        SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
-        CLUSTER: ${{ secrets.CLUSTER }}
-
+      
 
     - name: Build Docker Image
       run: docker build -t iskandarem:v1 src/
     
     - name: Tag and Push Docker Image
+      env:
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       run: |
         docker tag iskandarem:v1 $ECR_REPOSITORY:latest
         docker push $ECR_REPOSITORY:latest
     - name: Force ECS Redeploy
+      env:
+        SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+        CLUSTER: ${{ secrets.CLUSTER}}
       run: |
         aws ecs update-service \
           --service $SERVICE_NAME \
