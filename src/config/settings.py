@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts',  # Custom app for user accounts
+    'posts',  # Custom app for blog posts
     'rest_framework',
     'rest_framework.authtoken', # Django REST Framework token authentication
     
