@@ -13,6 +13,28 @@ resource "aws_ecs_cluster" "iskandarem_cluster" {
   name = "iskandarem-cluster" # Name your cluster here
 }
 
+# creates a policy that keeps only 2 containers in container registry (ecr) 
+resource "aws_ecr_lifecycle_policy" "iskandarem_ecr_policy" {
+  repository = aws_ecr_repository.iskandarem_ecr_repo.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 2 images"
+        selection = {
+          tagStatus     = "any"
+          countType     = "imageCountMoreThan"
+          countNumber   = 2
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
 
 resource "aws_ecs_task_definition" "iskandarem_task" {
   family                   = "iskandarem-first-task" # Name your task
